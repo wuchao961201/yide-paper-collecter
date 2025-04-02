@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# 日志文件
+*.log
+logs/
+
+# 缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 项目文件
+README.md
+LICENSE
+cron_setup.sh
+start_paper_collector.sh
+
+# Docker文件
+.dockerignore
+Dockerfile*
+docker-compose.yml 

@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  paper-collector:
+    build: .
+    container_name: paper-collector
+    volumes:
+      # 将本地配置文件夹挂载到容器中，方便修改配置
+      - ./conf:/app/conf
+      # 将收集的论文保存到本地目录
+      - ./data/collected-articles:/app/data/collected-articles
+      # 将日志文件保存到本地
+      - ./logs:/app/logs
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # 定时服务，使用cron定时执行
+  cron:
+    image: alpine:3.14
+    container_name: paper-collector-cron
+    depends_on:
+      - paper-collector
+    volumes:
+      - ./logs:/logs
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    command: >
+      sh -c "
+        apk add --no-cache dcron tzdata curl &&
+        echo '0 10 * * * curl -s paper-collector:5000/trigger >> /logs/cron.log 2>&1' > /etc/crontabs/root &&
+        crond -f -d 8
+      " 

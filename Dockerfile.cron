@@ -1,0 +1,14 @@
+FROM alpine:3.14
+
+# 安装cron
+RUN apk add --no-cache dcron tzdata curl
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 创建cron作业
+RUN echo "0 10 * * * curl -s paper-collector:5000/trigger >> /app/logs/cron.log 2>&1" > /etc/crontabs/root
+
+# 启动cron服务
+CMD ["crond", "-f", "-d", "8"] 
