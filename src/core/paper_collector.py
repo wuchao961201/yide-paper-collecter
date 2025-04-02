@@ -175,6 +175,9 @@ def save_new_papers_list(new_papers, output_folder):
 def send_email(report_subject, new_papers, all_papers):
     """
     发送包含新论文和所有论文的邮件报告
+    
+    返回:
+        (bool, str): 邮件发送是否成功，以及相关消息
     """
     # 第一部分：新项目
     if new_papers:
@@ -206,12 +209,20 @@ def send_email(report_subject, new_papers, all_papers):
             text = msg.as_string()
             server.sendmail(settings.SENDER_EMAIL, settings.RECIPIENT_EMAIL, text)
         logger.info("邮件发送成功")
+        return True, "邮件发送成功"
     except Exception as e:
-        logger.error(f"发送邮件时出错: {e}")
+        error_msg = f"发送邮件时出错: {e}"
+        logger.error(error_msg)
+        return False, error_msg
 
-def collect_papers():
-    """收集论文的主函数"""
-    logger.info("在Docker环境中开始论文收集过程")
+def collect_papers_without_email():
+    """
+    收集论文但不发送邮件
+    
+    返回:
+        (list, list, int, int): 所有论文列表，新论文列表，论文总数，新论文数量
+    """
+    logger.info("开始论文收集过程（不发送邮件）")
     all_relevant_papers = []
 
     # 使用ThreadPoolExecutor并行获取源
@@ -243,14 +254,32 @@ def collect_papers():
     # 保存今天的阅读列表
     today_str = datetime.now().strftime("%Y-%m-%d")
     save_reading_list(all_relevant_papers, output_folder, today_str)
-
-    # 生成邮件报告
-    report_subject = f"[论文获取报告 - Yide Liu] [{today_str}]"
-    send_email(report_subject, new_papers, all_relevant_papers)
     
-    logger.info("论文收集过程完成")
-    return len(all_relevant_papers), len(new_papers)
+    logger.info(f"论文收集过程完成: 共收集 {len(all_relevant_papers)} 篇论文，其中 {len(new_papers)} 篇为新论文")
+    return all_relevant_papers, new_papers, len(all_relevant_papers), len(new_papers)
+
+def collect_papers():
+    """
+    收集论文的主函数（包括发送邮件）
+    
+    返回:
+        (int, int, bool, str): 论文总数，新论文数量，邮件是否发送成功，邮件发送结果消息
+    """
+    logger.info("开始论文收集过程（包括发送邮件）")
+    
+    # 收集论文
+    all_papers, new_papers, total_count, new_count = collect_papers_without_email()
+    
+    # 生成邮件报告
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    report_subject = f"[论文获取报告 - Yide Liu] [{today_str}]"
+    
+    # 发送邮件
+    email_success, email_message = send_email(report_subject, new_papers, all_papers)
+    
+    return total_count, new_count, email_success, email_message
 
 if __name__ == "__main__":
-    total_papers, new_papers = collect_papers()
-    print(f"收集完成: 共{total_papers}篇论文，其中{new_papers}篇为新论文") 
+    total_papers, new_papers, email_success, email_message = collect_papers()
+    print(f"收集完成: 共{total_papers}篇论文，其中{new_papers}篇为新论文")
+    print(f"邮件发送结果: {'成功' if email_success else '失败'} - {email_message}") 

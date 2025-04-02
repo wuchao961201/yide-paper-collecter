@@ -50,8 +50,8 @@ def main():
     
     elif args.command == 'collect':
         from src.core.paper_collector import collect_papers
-        total, new = collect_papers()
-        print(f"收集完成: 共{total}篇论文，其中{new}篇为新论文")
+        total_count, new_count, email_success, email_message= collect_papers()
+        print(f"收集完成: 共{total_count}篇论文，其中{new_count}篇为新论文")
     
     elif args.command == 'test-email':
         from src.utils.email_test import test_email_connection

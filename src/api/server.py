@@ -18,6 +18,7 @@ from src.config import API_HOST, API_PORT, LOGS_DIR
 
 # 初始化Flask应用
 app = Flask(__name__)
+app.json.ensure_ascii = False # 解决中文乱码问题
 
 # 设置日志
 os.makedirs(LOGS_DIR, exist_ok=True)
@@ -37,17 +38,29 @@ def trigger_collection():
         # 导入核心模块并执行论文收集
         from src.core.paper_collector import collect_papers
         
-        total, new = collect_papers()
+        total, new, email_success, email_message = collect_papers()
         
-        logger.info(f"论文收集脚本执行成功：共收集 {total} 篇论文，其中 {new} 篇为新论文")
-        return jsonify({
+        # 构建响应
+        response = {
             "status": "success",
             "message": "论文收集脚本执行成功",
             "data": {
                 "total_papers": total,
-                "new_papers": new
+                "new_papers": new,
+                "email": {
+                    "success": email_success,
+                    "message": email_message
+                }
             }
-        })
+        }
+        
+        # 记录结果
+        if email_success:
+            logger.info(f"论文收集脚本执行成功：共收集 {total} 篇论文，其中 {new} 篇为新论文，邮件已成功发送")
+        else:
+            logger.warning(f"论文收集脚本执行成功：共收集 {total} 篇论文，其中 {new} 篇为新论文，但邮件发送失败: {email_message}")
+        
+        return jsonify(response)
     except Exception as e:
         logger.error(f"论文收集脚本执行失败: {str(e)}")
         return jsonify({
@@ -70,10 +83,63 @@ def home():
         "author": "Liu Yide",
         "endpoints": [
             {"path": "/", "method": "GET", "description": "首页"},
-            {"path": "/trigger", "method": "GET", "description": "触发论文收集"},
+            {"path": "/trigger", "method": "GET", "description": "触发论文收集和邮件发送"},
+            {"path": "/send-email", "method": "GET", "description": "仅发送邮件（使用最新收集的数据）"},
             {"path": "/health", "method": "GET", "description": "健康检查"}
         ]
     })
+
+@app.route('/send-email', methods=['GET'])
+def send_email_only():
+    """单独触发邮件发送（使用已收集的最新数据）"""
+    logger.info("收到邮件发送请求")
+    
+    try:
+        # 导入核心模块
+        from src.core.paper_collector import collect_papers_without_email, send_email
+        import os
+        from datetime import datetime
+        
+        # 收集论文但不发送邮件
+        all_papers, new_papers, total, new = collect_papers_without_email()
+        
+        # 生成邮件报告
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        report_subject = f"[论文获取报告 - Yide Liu] [{today_str}]"
+        
+        # 发送邮件
+        email_success, email_message = send_email(report_subject, new_papers, all_papers)
+        
+        # 构建响应
+        response = {
+            "status": "success",
+            "message": "邮件处理完成",
+            "data": {
+                "email": {
+                    "success": email_success,
+                    "message": email_message
+                },
+                "papers": {
+                    "total": total,
+                    "new": new
+                }
+            }
+        }
+        
+        # 记录结果
+        if email_success:
+            logger.info(f"邮件发送成功：包含 {total} 篇论文，其中 {new} 篇为新论文")
+        else:
+            logger.warning(f"邮件发送失败: {email_message}")
+        
+        return jsonify(response)
+    except Exception as e:
+        logger.error(f"邮件发送失败: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "邮件发送失败",
+            "error": str(e)
+        }), 500
 
 def run_server():
     """启动API服务器"""

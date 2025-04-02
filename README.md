@@ -62,7 +62,7 @@ SENDER_EMAIL = "your_email@example.com"
 SENDER_PASSWORD = "your_password"
 RECIPIENT_EMAIL = "recipient@example.com"
 SMTP_SERVER = "smtp.example.com"
-SMTP_PORT = 25
+SMTP_PORT = 587
 ```
 
 ## 使用方法
@@ -89,11 +89,11 @@ python run.py server
 
 ### Docker部署
 
-1. 创建.env环境文件:
+1. 修改`docker-compose.yml`中的环境变量:
 
-```bash
-echo "PAPER_COLLECTOR_PASSWORD=你的实际密码" > .env
-chmod 600 .env  # 限制文件权限
+```yaml
+environment:
+  - PAPER_COLLECTOR_PASSWORD=your_password_here
 ```
 
 2. 构建并启动容器:
@@ -111,12 +111,25 @@ docker-compose logs -f paper-collector
 ### API接口
 
 - `GET /`: 显示API信息
-- `GET /trigger`: 触发论文收集
+- `GET /trigger`: 触发论文收集和邮件发送
+- `GET /send-email`: 仅发送邮件（使用最新收集的数据）
 - `GET /health`: 健康检查
+
+#### 示例: 手动触发收集和邮件发送
+
+```bash
+curl http://localhost:5000/trigger
+```
+
+#### 示例: 仅发送邮件
+
+```bash
+curl http://localhost:5000/send-email
+```
 
 ## 定时执行
 
-使用Docker Compose部署时，已配置每天上午10点自动执行论文收集。
+使用Docker Compose部署时，已配置每天上午10点自动执行论文收集并发送邮件。cron作业会记录收集结果和邮件发送状态到日志文件。
 
 ## 输出文件
 

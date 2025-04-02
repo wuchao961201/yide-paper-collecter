@@ -38,10 +38,10 @@ ARXIV_API_URL = "http://export.arxiv.org/api/query"
 
 # 邮件配置
 # 注意：不要在此处存储实际密码，请使用环境变量或conf/local_settings.py
-SENDER_EMAIL = ""
+SENDER_EMAIL = "17355626985@sohu.com"
 SENDER_PASSWORD = "**********"  # 默认为空，实际使用时通过环境变量或本地配置覆盖
-RECIPIENT_EMAIL = ""
-SMTP_SERVER = ""
+RECIPIENT_EMAIL = "wuchao2@sunline.cn"
+SMTP_SERVER = "smtp.sohu.com"
 SMTP_PORT = 25
 
 # API服务器配置

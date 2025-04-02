@@ -4,10 +4,10 @@
 # 该文件不应提交到版本控制系统
 
 # 邮件配置
-SENDER_EMAIL = ""
+SENDER_EMAIL = "17355626985@sohu.com"
 SENDER_PASSWORD = "**********"  # 默认为空，实际使用时通过环境变量或本地配置覆盖
-RECIPIENT_EMAIL = ""
-SMTP_SERVER = ""
+RECIPIENT_EMAIL = "wuchao2@sunline.cn"
+SMTP_SERVER = "smtp.sohu.com"
 SMTP_PORT = 25
 
 # 自定义关键词 (可选，如果定义则会覆盖默认关键词)
