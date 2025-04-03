@@ -69,12 +69,6 @@ SMTP_PORT = 587
 
 ### 命令行运行
 
-1. 测试邮件发送功能:
-
-```bash
-python run.py test-email
-```
-
 2. 运行一次性论文收集:
 
 ```bash

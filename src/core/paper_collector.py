@@ -15,6 +15,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import importlib.util
 import sys
+import ssl
+from email.header import Header
+from email.utils import formataddr
 
 # 添加src目录到Python路径
 src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -174,7 +177,7 @@ def save_new_papers_list(new_papers, output_folder):
 
 def send_email(report_subject, new_papers, all_papers):
     """
-    发送包含新论文和所有论文的邮件报告
+    使用腾讯SES服务发送包含新论文和所有论文的邮件报告
     
     返回:
         (bool, str): 邮件发送是否成功，以及相关消息
@@ -194,24 +197,103 @@ def send_email(report_subject, new_papers, all_papers):
     report_body = new_items_section + original_results_section
 
     # 准备邮件
-    msg = MIMEMultipart()
-    msg['From'] = settings.SENDER_EMAIL
-    msg['To'] = settings.RECIPIENT_EMAIL
-    msg['Subject'] = report_subject
+    message = MIMEMultipart('alternative')
+    message['Subject'] = Header(report_subject, 'UTF-8')
+    
+    # 使用formataddr设置发件人和别名
+    sender_alias = getattr(settings, 'SENDER_ALIAS', "论文收集器")
+    message['From'] = formataddr([sender_alias, settings.SENDER_EMAIL])
+    
+    # 处理收件人，支持多收件人
+    recipients = settings.RECIPIENT_EMAIL
+    if isinstance(recipients, str):
+        recipients = [recipients]  # 如果是单个字符串，转换为列表
+    message['To'] = ", ".join(recipients)
+    
+    # 添加HTML格式的邮件正文
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{report_subject}</title>
+</head>
+<body>
+<h2>新项目</h2>
+<div>
+{"<p>没有新内容。</p>" if not new_papers else "".join([f"<p>{tick}. <strong>{paper[0]}</strong><br/><a href='{paper[2]}'>{paper[2]}</a></p>" for tick, paper in enumerate(new_papers, 1)])}
+</div>
+<hr/>
+<h2>原始获取结果</h2>
+<div>
+{"".join([f"<p>{tick}. <strong>{paper[0]}</strong><br/><a href='{paper[2]}'>{paper[2]}</a></p>" for tick, paper in enumerate(all_papers, 1)])}
+</div>
+</body>
+</html>"""
 
-    msg.attach(MIMEText(report_body, 'plain'))
+    mime_text = MIMEText(html_body, _subtype='html', _charset='UTF-8')
+    message.attach(mime_text)
+
+    # 保留纯文本版本作为备用
+    plain_text = MIMEText(report_body, _subtype='plain', _charset='UTF-8')
+    message.attach(plain_text)
+
+    # SMTP配置
+    smtp_host = settings.SMTP_SERVER
+    smtp_port = settings.SMTP_PORT
+    use_ssl = getattr(settings, 'SMTP_USE_SSL', smtp_port in [465, 587])  # 首先使用设置中的值，如果没有则根据端口自动决定
 
     # 发送邮件
     try:
-        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
-            server.starttls()  # 安全连接
-            server.login(settings.SENDER_EMAIL, settings.SENDER_PASSWORD)
-            text = msg.as_string()
-            server.sendmail(settings.SENDER_EMAIL, settings.RECIPIENT_EMAIL, text)
-        logger.info("邮件发送成功")
+        if use_ssl:
+            # 创建SSL上下文，使用默认密码套件
+            context = ssl.create_default_context()
+            context.set_ciphers('DEFAULT')
+            # 如果需要禁用TLSv1.3（服务端不支持时）
+            # context.options |= ssl.OP_NO_TLSv1_3
+            
+            # 使用SSL连接
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=context)
+            logger.debug("已建立SSL连接")
+        else:
+            # 使用普通连接
+            server = smtplib.SMTP(smtp_host, smtp_port)
+            server.starttls()  # 使用TLS加密
+            logger.debug("已建立TLS连接")
+        
+        # 登录和发送
+        server.login(settings.SENDER_EMAIL, settings.SENDER_PASSWORD)
+        logger.debug("SMTP登录成功")
+        server.sendmail(settings.SENDER_EMAIL, recipients, message.as_string())
+        server.quit()
+        
+        logger.info(f"邮件成功发送给 {', '.join(recipients)}")
         return True, "邮件发送成功"
+    except smtplib.SMTPConnectError as e:
+        error_msg = f"连接SMTP服务器失败: {e.smtp_code} {e.smtp_error}"
+        logger.error(error_msg)
+        return False, error_msg
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"SMTP认证失败: {e.smtp_code} {e.smtp_error}"
+        logger.error(error_msg)
+        return False, error_msg
+    except smtplib.SMTPSenderRefused as e:
+        error_msg = f"发送方地址被拒绝: {e.smtp_code} {e.smtp_error}"
+        logger.error(error_msg)
+        return False, error_msg
+    except smtplib.SMTPRecipientsRefused as e:
+        error_msg = f"接收方地址被拒绝: {e.recipients}"
+        logger.error(error_msg)
+        return False, error_msg
+    except smtplib.SMTPDataError as e:
+        error_msg = f"SMTP数据错误: {e.smtp_code} {e.smtp_error}"
+        logger.error(error_msg)
+        return False, error_msg
+    except smtplib.SMTPException as e:
+        error_msg = f"SMTP通用错误: {str(e)}"
+        logger.error(error_msg)
+        return False, error_msg
     except Exception as e:
-        error_msg = f"发送邮件时出错: {e}"
+        error_msg = f"发送邮件时出错: {str(e)}"
         logger.error(error_msg)
         return False, error_msg
 

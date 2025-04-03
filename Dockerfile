@@ -4,16 +4,17 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # 安装依赖
-RUN pip install --no-cache-dir feedparser requests flask
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-# 在实际部署中，应通过环境变量注入密码
-ENV PAPER_COLLECTOR_PASSWORD="password"
+# 不在Dockerfile中设置密码，而是通过环境变量传入
+# ENV PAPER_COLLECTOR_PASSWORD="password"
 
 # 设置时区
-RUN apt-get update && apt-get install -y tzdata && \
+RUN apt-get update && apt-get install -y tzdata curl && \
     ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     apt-get clean && \

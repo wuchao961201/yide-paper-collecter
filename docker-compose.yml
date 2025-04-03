@@ -15,8 +15,8 @@ services:
       - "5000:5000"
     environment:
       - TZ=Asia/Shanghai
-      # 设置邮箱密码（在生产环境中应使用Docker Secrets或环境文件）
-      - PAPER_COLLECTOR_PASSWORD=your_password_here
+      # 从环境变量或.env文件中获取密码，而不是硬编码
+      - PAPER_COLLECTOR_PASSWORD=${PAPER_COLLECTOR_PASSWORD}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
