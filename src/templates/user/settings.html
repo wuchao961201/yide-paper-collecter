@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}账户设置 - 论文收集器{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">账户设置</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                个人信息
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('user.update_settings') }}" class="settings-form">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                        {% if form.username.errors %}
+                        <div class="text-danger">
+                            {% for error in form.username.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.send_time.label(class="form-label") }}
+                        {{ form.send_time(class="form-control") }}
+                        <div class="form-text">格式: HH:MM，例如 08:00 表示每天早上8点发送</div>
+                        {% if form.send_time.errors %}
+                        <div class="text-danger">
+                            {% for error in form.send_time.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                修改密码
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('user.change_password') }}" class="settings-form">
+                    {{ password_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ password_form.current_password.label(class="form-label") }}
+                        {{ password_form.current_password(class="form-control") }}
+                        {% if password_form.current_password.errors %}
+                        <div class="text-danger">
+                            {% for error in password_form.current_password.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ password_form.new_password.label(class="form-label") }}
+                        {{ password_form.new_password(class="form-control") }}
+                        <div class="form-text">密码至少需要6个字符</div>
+                        {% if password_form.new_password.errors %}
+                        <div class="text-danger">
+                            {% for error in password_form.new_password.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ password_form.new_password2.label(class="form-label") }}
+                        {{ password_form.new_password2(class="form-control") }}
+                        {% if password_form.new_password2.errors %}
+                        <div class="text-danger">
+                            {% for error in password_form.new_password2.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ password_form.submit(class="btn btn-warning") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                账户信息
+            </div>
+            <div class="card-body">
+                <p><strong>邮箱:</strong> {{ current_user.email }}</p>
+                <p><strong>账户创建时间:</strong> {{ current_user.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <p><strong>最后登录时间:</strong> {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else '从未登录' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,202 +1,144 @@
-# YIDE论文收集器 (Paper Collector)
+# YIDE论文收集器
 
-一个强大的自动化工具，用于从多个学术来源收集与特定关键词相关的最新研究论文。
+一个智能学术论文订阅系统，自动从多个学术源收集并筛选与您研究兴趣相关的最新论文。
 
 作者: Wu Chao & Liu Yide  
-版本: 2.1
+版本: 3.0
 
-## 主要功能
+## 核心特性
 
-- 自动从多个学术期刊RSS源获取最新论文
-- 支持从arXiv抓取最近90天内的相关论文
-- 智能关键词筛选系统，准确识别相关研究
-- 每日对比功能，自动标记新发表论文
-- 自定义邮件报告，包含新论文和完整论文列表
-- RESTful API接口，支持灵活触发和查询
-- 完整的Docker支持，便于在任何环境部署
-- 内置定时任务，自动执行日常收集工作
+- **多源采集**：自动从arXiv、TechRxiv及自定义RSS源获取最新学术论文
+- **智能筛选**：基于用户定义的关键词精准匹配相关研究内容
+- **个性化订阅**：每位用户可独立设置关键词、RSS源和接收时间
+- **定时推送**：在用户指定时间将筛选后的论文发送至邮箱
+- **去重机制**：智能记录已发送论文，避免重复推送相同内容
+- **Web管理界面**：用户友好的界面，轻松管理订阅设置
+- **Docker部署**：完整容器化支持，简化部署和维护流程
 
-## 项目结构
+## Docker部署指南
 
-```
-├── conf/                      # 配置文件目录
-│   ├── local_settings.py      # 本地配置（不提交到版本控制）
-│   └── local_settings.example.py # 本地配置示例
-├── data/                      # 数据目录
-│   └── collected-articles/    # 收集的论文存放目录
-├── logs/                      # 日志文件目录
-├── src/                       # 源代码目录
-│   ├── api/                   # API服务器模块
-│   │   └── server.py          # API服务器实现
-│   ├── config/                # 配置模块
-│   ├── core/                  # 核心功能模块
-│   │   └── paper_collector.py # 论文收集核心实现
-│   └── utils/                 # 工具函数模块
-├── Dockerfile                 # 主服务Docker构建文件
-├── Dockerfile.cron            # 定时任务Docker构建文件
-├── docker-compose.yml         # Docker Compose配置
-├── .env.example               # 环境变量示例文件
-├── cron_setup.sh              # 定时任务设置脚本
-├── start_paper_collector.sh   # 服务启动脚本
-└── run.py                     # 主入口点脚本
-```
+### 前提条件
 
-## 快速开始
+- 安装 [Docker](https://docs.docker.com/get-docker/)
+- 安装 [Docker Compose](https://docs.docker.com/compose/install/)
 
-### 方法1: 使用Docker（推荐）
+### 部署步骤
 
 1. 克隆仓库：
-   ```bash
-   git clone https://github.com/username/yide-paper-collecter.git
-   cd yide-paper-collecter
-   ```
-
-2. 创建环境变量文件：
-   ```bash
-   cp .env.example .env
-   # 编辑.env文件，设置必要的环境变量
-   ```
-
-3. 启动服务：
-   ```bash
-   docker-compose up -d
-   ```
-   
-服务将在后台运行，并监听5000端口。自动化定时任务将每天上午10点执行。
-
-### 方法2: 本地安装
-
-1. 确保已安装Python 3.6+：
-   ```bash
-   python --version
-   ```
-
-2. 安装依赖：
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. 创建本地配置：
-   ```bash
-   cp conf/local_settings.example.py conf/local_settings.py
-   # 编辑local_settings.py，设置必要参数
-   ```
-
-4. 运行服务：
-   ```bash
-   ./start_paper_collector.sh
-   ```
-
-## 配置详解
-
-### 必需配置
-
-在`conf/local_settings.py`中设置以下参数：
-
-```python
-# 邮件设置
-SENDER_EMAIL = "your_email@example.com"    # 发件人邮箱
-SENDER_PASSWORD = "your_password"          # 发件人密码
-RECIPIENT_EMAIL = "recipient@example.com"  # 收件人邮箱
-SMTP_SERVER = "smtp.example.com"           # SMTP服务器
-SMTP_PORT = 587                            # SMTP端口
-
-# 关键词设置
-KEYWORDS = ["机器学习", "人工智能", "深度学习"]  # 要筛选的关键词
+```bash
+git clone https://github.com/wuchao961201/yide-paper-collecter.git
+cd yide-paper-collecter
 ```
 
-### 高级配置
+2. 创建环境变量文件：
+```bash
+cp .env.example .env
+# 编辑.env文件配置邮箱和SMTP信息
+```
 
-```python
-# API配置
-API_HOST = "0.0.0.0"  # API监听地址
-API_PORT = 5000       # API监听端口
+3. 启动服务：
+```bash
+docker-compose up -d
+```
 
-# 论文收集配置
-DAYS_TO_FETCH = 90    # 从arXiv获取的天数范围
-MAX_RESULTS = 100     # 每个查询最大结果数
+4. 访问Web界面：`http://your_server_ip:8080`
+
+服务包含两个容器：
+- `paper-collector`：Web应用和API服务
+- `paper-collector-cron`：定时任务服务（按用户设置的时间发送论文）
+
+### 容器管理
+
+```bash
+# 查看服务日志
+docker logs paper-collector
+docker logs paper-collector-cron
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+
+# 更新服务
+git pull
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+## 环境配置
+
+必要的环境变量（在`.env`文件中设置）：
+
+```ini
+# 邮件配置
+SENDER_EMAIL=your_email@example.com
+PAPER_COLLECTOR_PASSWORD=your_password
+SMTP_SERVER=smtp.example.com
+SMTP_PORT=465
+SMTP_USE_SSL=True
+
+# 安全配置
+SECRET_KEY=your_random_string
+
+# 可选：自定义数据库（默认使用SQLite）
+# DATABASE_URL=mysql+pymysql://username:password@mysql_host:3306/paper_collector
 ```
 
 ## 使用指南
 
-### 命令行操作
+### 用户界面
 
-收集论文并发送邮件：
+注册并登录后，您可以：
+
+1. **仪表盘**：查看订阅状态和收集统计信息
+2. **关键词管理**：添加/编辑您感兴趣的研究关键词
+3. **RSS源管理**：配置要监控的学术期刊/网站RSS链接
+   - 系统默认已配置arXiv和TechRxiv源
+   - 您可添加其他学术期刊的RSS链接
+4. **发送设置**：自定义接收邮件的时间（24小时制，如"08:00"）
+5. **账户设置**：管理邮箱和密码等个人信息
+
+### 命令行工具
+
 ```bash
-python run.py collect
+# 初始化数据库
+docker exec paper-collector python run.py init-db
+
+# 手动为特定用户收集论文
+docker exec paper-collector python run.py collect --user-id 1
+
+# 为所有配置了当前时间的用户收集论文
+docker exec paper-collector python run.py collect --all-users
+
+# 启动Web应用（容器已自动运行）
+docker exec paper-collector python run.py web
 ```
 
-仅收集论文（不发送邮件）：
-```bash
-python run.py collect --no-email
-```
+## 系统架构
 
-启动API服务器：
-```bash
-python run.py server [--host HOST] [--port PORT]
-```
-
-测试邮件配置：
-```bash
-python run.py test-email
-```
-
-### API接口
-
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/` | GET | 服务信息和状态 |
-| `/trigger` | GET | 触发一次完整的论文收集和邮件发送 |
-| `/send-email` | GET | 仅发送邮件（使用最近一次收集的数据） |
-| `/health` | GET | 健康检查 |
-
-示例：
-```bash
-# 触发论文收集
-curl http://localhost:5000/trigger
-
-# 健康检查
-curl http://localhost:5000/health
-```
-
-## 定时任务
-
-本项目支持通过cron自动定时执行：
-
-- Docker部署：使用docker-compose中配置的cron服务自动执行
-- 本地部署：使用`cron_setup.sh`脚本设置系统cron任务
-
-默认设置为每天上午10:00自动运行论文收集和邮件发送。
-
-## 输出文件
-
-- `data/collected-articles/reading_list_YYYY-MM-DD.txt`: 每日完整论文列表
-- `data/collected-articles/reading_list_new.txt`: 新增论文列表
-- `logs/paper_collector.log`: 核心功能日志
-- `logs/api_server.log`: API服务器日志
-- `logs/cron.log`: 定时任务日志
+- **Web应用**：Flask应用，提供用户界面和API
+- **数据库**：SQLite（默认）或MySQL/PostgreSQL（可配置）
+- **定时任务**：每小时检查，为设置了当前时间的用户收集和发送论文
+- **论文收集**：自动从arXiv API、TechRxiv和自定义RSS源获取论文
+- **邮件模块**：根据用户偏好发送格式化的论文邮件报告
 
 ## 故障排除
 
-常见问题及解决方案：
+- **邮件发送失败**：
+  - 检查SMTP服务器设置和密码
+  - 确认邮箱安全设置允许第三方应用登录
 
-### 邮件发送失败
-- 检查SMTP服务器设置和密码
-- 确认网络连接正常
-- 使用测试命令：`python run.py test-email -v`
+- **论文收集问题**：
+  - 确认关键词设置是否合理
+  - 检查RSS链接是否有效
+  - 查看日志：`docker logs paper-collector`
 
-### Docker相关问题
-- 确保Docker和Docker Compose已正确安装
-- 检查端口5000是否被占用：`lsof -i :5000`
-- 查看容器日志：`docker-compose logs paper-collector`
+- **容器启动问题**：
+  - 检查端口8080是否被占用：`lsof -i :8080`
+  - 确认Docker和Docker Compose正确安装
 
-### 论文收集问题
-- 检查关键词设置是否合理
-- 确认网络可以访问学术网站
-- 查看详细日志：`tail -f logs/paper_collector.log`
+## 支持与贡献
 
-## 贡献与支持
-
-如发现问题或有改进建议，请联系开发团队或提交Issue/PR。
-
-祝您使用愉快！ 
+如有问题或改进建议，请联系开发团队或提交Issue。 

@@ -5,6 +5,11 @@
 
 import os
 import logging
+from datetime import timedelta
+from dotenv import load_dotenv
+
+# 加载.env文件
+load_dotenv()
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -23,90 +28,45 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 OUTPUT_FOLDER = os.path.join(DATA_DIR, 'collected-articles')
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# 关键词配置
-KEYWORDS = [
-    "humanoid robot",
-    "bipedal walking",
-    "reinforcement learning",
-    "dexterous manipulation",
-    "multi-finger",
-    "tactile sensing",
-    "grasping",
-    "in-hand",
-    "Fabric Manipulation",
-    "deformable object",
-    "cloth folding",
-    "RL policy",
-    "offline reinforcement learning",
-    "hierarchical RL",
-    "multi-task RL",
-    "sparse reward",
-    "VLM robotic",
-    "LLM",
-    "embodied AI",
-    "world model",
-    "haptic feedback"
-]
-
-# RSS源配置
-RSS_FEEDS = [
-    "https://ieeexplore.ieee.org/rss/TOC7083369.XML",
-    "https://www.nature.com/ncomms.rss",
-    "https://www.nature.com/nature.rss",
-    "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science",
-    "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv",
-    "https://journals.sagepub.com/action/showFeed?ui=0&mi=ehikzz&ai=2b4&jc=ijr&type=etoc&feed=rss",
-    "https://ieeexplore.ieee.org/rss/TOC8860.XML",
-    "https://www.science.org/action/showFeed?ui=0&mi=ehikzz&ai=sm&jc=scirobotics&type=etoc&feed=rss",
-    "https://ieeexplore.ieee.org/rss/RAL.xml",
-    "https://www.nature.com/natmachintell.rss",
-]
-
 # arXiv API配置
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 
 # TechRxiv API配置
 TECHRXIV_API_URL = "https://www.techrxiv.org/feed/rss_2.0/recent"
 
-# 邮件默认配置
-# 注意：不要在此处存储实际密码，请使用环境变量或conf/local_settings.py
-SENDER_EMAIL = "**********"
-SENDER_PASSWORD = ""  # 默认为空，实际使用时通过环境变量或本地配置覆盖
-RECIPIENT_EMAIL = "**********"
+# 邮件配置 - 从环境变量读取
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL')
+if not SENDER_EMAIL:
+    logger.warning("SENDER_EMAIL 未在环境变量中设置")
 
-# 腾讯SES SMTP配置
-# 可选的地区服务器: smtp.qcloudmail.com(香港), sg-smtp.qcloudmail.com(新加坡), gz-smtp.qcloudmail.com(广州)
-SMTP_SERVER = "smtp.qcloudmail.com"
-SMTP_PORT = 465  # 465/587使用SSL，25使用TLS
-SMTP_USE_SSL = True  # 是否使用SSL连接
+# SMTP配置 - 从环境变量读取
+SMTP_SERVER = os.environ.get('SMTP_SERVER')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 465))
+SMTP_USE_SSL = os.environ.get('SMTP_USE_SSL', 'True').lower() in ('true', '1', 't')
+
+if not SMTP_SERVER:
+    logger.warning("SMTP_SERVER 未在环境变量中设置")
 
 # API服务器默认配置
 API_HOST = "0.0.0.0"
-API_PORT = 5000
+API_PORT = 8080
 
-# 尝试导入本地设置来覆盖默认值
-try:
-    import importlib.util
-    local_settings_path = os.path.join(BASE_DIR, 'conf', 'local_settings.py')
-    if os.path.exists(local_settings_path):
-        spec = importlib.util.spec_from_file_location("local_settings", local_settings_path)
-        local_settings = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(local_settings)
-        
-        # 从local_settings中获取所有大写变量
-        for setting in dir(local_settings):
-            if setting.isupper():
-                locals()[setting] = getattr(local_settings, setting)
-        
-        logger.info("已加载本地设置")
-    else:
-        logger.warning("未找到本地设置文件，使用默认配置")
-except ImportError as e:
-    logger.error(f"导入本地设置时出错: {e}")
-    logger.warning("使用默认配置")
-except Exception as e:
-    logger.error(f"加载本地设置时出错: {e}")
-    logger.warning("使用默认配置")
+# Flask应用配置 - 从环境变量读取
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    logger.warning("SECRET_KEY 未在环境变量中设置，这在生产环境中是不安全的")
+    SECRET_KEY = 'dev-key-please-change-in-production'
 
-# 尝试从环境变量中读取敏感信息
-SENDER_PASSWORD = os.environ.get('PAPER_COLLECTOR_PASSWORD', SENDER_PASSWORD) 
+FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
+
+# Session配置
+PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+
+# 数据库配置
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.join(DATA_DIR, "paper_collector.db")}')
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+# 邮件密码 - 从环境变量读取
+SENDER_PASSWORD = os.environ.get('PAPER_COLLECTOR_PASSWORD')
+if not SENDER_PASSWORD:
+    logger.warning("PAPER_COLLECTOR_PASSWORD 未在环境变量中设置") 
