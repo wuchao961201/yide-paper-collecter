@@ -4,7 +4,7 @@
 包含用户仪表盘、设置和订阅管理功能
 """
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
 
@@ -14,7 +14,7 @@ from ..forms import (
     BatchRssFeedsForm, BatchKeywordsForm,
     UserSettingsForm, PasswordChangeForm
 )
-from ..core.paper_collector import collect_papers_for_user
+from ..core.paper_collector import collect_papers_for_user, collect_papers_for_all_users
 
 # 创建蓝图
 user_bp = Blueprint('user', __name__)
@@ -329,4 +329,36 @@ def trigger_collection():
     except Exception as e:
         flash(f'论文收集过程中出错：{str(e)}', 'danger')
     
-    return redirect(url_for('user.dashboard')) 
+    return redirect(url_for('user.dashboard'))
+
+# 新增API路由，用于定时任务调用
+@user_bp.route('/api/trigger-all-collection', methods=['POST'])
+def api_trigger_all_collection():
+    """API接口：触发为所有用户收集论文（用于定时任务）"""
+    from flask import current_app, jsonify
+    
+    # 检查访问密钥是否正确
+    access_key = request.form.get('secret_key') or request.headers.get('X-API-Key')
+    
+    if not access_key or access_key != current_app.config['SECRET_KEY']:
+        return jsonify({
+            'success': False,
+            'message': '访问密钥无效，没有授权'
+        }), 403
+    
+    try:
+        # 调用为所有用户收集论文的函数
+        success_count, total_count, errors = collect_papers_for_all_users()
+        
+        return jsonify({
+            'success': True,
+            'total_users': total_count,
+            'success_users': success_count,
+            'errors_count': len(errors),
+            'errors': errors[:10] if errors else []  # 只返回前10个错误
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'收集论文过程中出错：{str(e)}'
+        }), 500 

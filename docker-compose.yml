@@ -27,6 +27,8 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       # 数据库配置
       - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/paper_collector.db}
+      # 定时任务配置
+      - CRON_SCHEDULE=${CRON_SCHEDULE:-*/1 * * * *}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
@@ -34,30 +36,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
-
-  # 定时服务，使用cron定时执行
-  cron:
-    build:
-      context: .
-      dockerfile: Dockerfile.cron
-    container_name: paper-collector-cron
-    depends_on:
-      - paper-collector
-    volumes:
-      # 确保与主服务使用相同的数据卷
-      - ./data:/app/data
-      - ./logs:/app/logs
-    environment:
-      - TZ=Asia/Shanghai
-      # 邮件配置
-      - SENDER_EMAIL=${SENDER_EMAIL}
-      - PAPER_COLLECTOR_PASSWORD=${PAPER_COLLECTOR_PASSWORD}
-      # SMTP配置
-      - SMTP_SERVER=${SMTP_SERVER}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USE_SSL=${SMTP_USE_SSL}
-      # Flask配置
-      - SECRET_KEY=${SECRET_KEY:-dev-key-please-change-in-production}
-      # 数据库配置
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/paper_collector.db}
-    restart: unless-stopped 

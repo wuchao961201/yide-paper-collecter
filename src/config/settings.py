@@ -6,10 +6,6 @@
 import os
 import logging
 from datetime import timedelta
-from dotenv import load_dotenv
-
-# 加载.env文件
-load_dotenv()
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -32,7 +28,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 
 # TechRxiv API配置
-TECHRXIV_API_URL = "https://www.techrxiv.org/feed/rss_2.0/recent"
+TECHRXIV_API_URL = "https://ieeexplore.ieee.org/feed/rss/TechRxiv"
 
 # 邮件配置 - 从环境变量读取
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL')

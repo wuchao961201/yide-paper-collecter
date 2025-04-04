@@ -8,10 +8,6 @@ import os
 import sys
 import argparse
 from datetime import datetime
-from dotenv import load_dotenv
-
-# 加载.env文件中的环境变量
-load_dotenv()
 
 # 将项目根目录添加到Python路径
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +25,7 @@ def main():
     # 运行Web应用的子命令
     web_parser = subparsers.add_parser('web', help='启动Web应用')
     web_parser.add_argument('--host', help='监听地址 (默认: 0.0.0.0)')
-    web_parser.add_argument('--port', type=int, help='监听端口 (默认: 5000)')
+    web_parser.add_argument('--port', type=int, help='监听端口 (默认: 8080)')
     web_parser.add_argument('--debug', action='store_true', help='启用调试模式')
     
     # 添加收集论文子命令
@@ -52,7 +48,7 @@ def main():
         
         # 处理命令行选项
         host = args.host or app.config.get('API_HOST', '0.0.0.0')
-        port = args.port or app.config.get('API_PORT', 5000)
+        port = args.port or app.config.get('API_PORT', 8080)
         debug = args.debug
         
         # 启动应用

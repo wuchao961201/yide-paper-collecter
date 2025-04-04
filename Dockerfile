@@ -21,7 +21,7 @@ ENV FLASK_APP=src.app
 # ENV PAPER_COLLECTOR_PASSWORD="password"
 
 # 设置时区
-RUN apt-get update && apt-get install -y tzdata curl && \
+RUN apt-get update && apt-get install -y tzdata curl cron && \
     ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     apt-get clean && \
@@ -33,18 +33,46 @@ RUN mkdir -p /app/data/collected-articles /app/logs /app/conf /app/src/static /a
 # 复制项目文件
 COPY src /app/src
 COPY run.py /app/
-COPY cron_task.py /app/
+
+# 创建启动脚本
+RUN echo '#!/bin/bash\n\
+# 创建cron日志文件\n\
+touch /app/logs/cron.log\n\
+\n\
+# 获取定时任务配置，默认为每1分钟运行一次\n\
+CRON_SCHEDULE="${CRON_SCHEDULE:-*/1 * * * *}"\n\
+\n\
+# 获取当前PATH\n\
+PATH_VALUE=$(echo $PATH)\n\
+\n\
+# 创建临时crontab文件\n\
+cat > /tmp/crontab << EOF\n\
+SHELL=/bin/bash\n\
+PATH=$PATH_VALUE\n\
+$CRON_SCHEDULE curl -X POST -H "X-API-Key: ${SECRET_KEY}" http://localhost:8080/user/api/trigger-all-collection >> /app/logs/cron.log 2>&1\n\
+EOF\n\
+\n\
+# 安装crontab\n\
+crontab /tmp/crontab\n\
+rm /tmp/crontab\n\
+\n\
+# 启动cron服务\n\
+service cron start\n\
+\n\
+# 初始化数据库并启动Web应用\n\
+python run.py init-db && python run.py web\n\
+' > /app/start.sh
 
 # 授予执行权限
 RUN chmod +x /app/run.py
-RUN chmod +x /app/cron_task.py
+RUN chmod +x /app/start.sh
 
 # 暴露API端口
-EXPOSE 5000
+EXPOSE 8080
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD curl -f http://localhost:8080/health || exit 1
 
-# 初始化数据库并启动Web应用
-CMD ["sh", "-c", "python run.py init-db && python run.py web"] 
+# 启动脚本
+CMD ["/bin/bash", "/app/start.sh"] 
