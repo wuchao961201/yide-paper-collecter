@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}关键词管理 - 论文收集器{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">关键词管理</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                我的关键词
+            </div>
+            <div class="card-body">
+                {% if keywords %}
+                <div class="row">
+                    {% for keyword in keywords %}
+                    <div class="col-md-6 keyword-card">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ keyword.text }}</h5>
+                                <p class="card-text"><small class="text-muted">添加于: {{ keyword.added_at.strftime('%Y-%m-%d') }}</small></p>
+                                <form action="{{ url_for('user.delete_keyword', keyword_id=keyword.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定要删除这个关键词吗？')">删除</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    您还没有添加任何关键词。请使用右侧的表单添加。
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                添加关键词
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('user.add_keyword') }}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.text.label(class="form-label") }}
+                        {{ form.text(class="form-control") }}
+                        {% if form.text.errors %}
+                        <div class="text-danger">
+                            {% for error in form.text.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                批量添加
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('user.batch_add_keywords') }}">
+                    {{ batch_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ batch_form.keywords.label(class="form-label") }}
+                        {{ batch_form.keywords(class="form-control", rows=5, placeholder="每行一个关键词") }}
+                        {% if batch_form.keywords.errors %}
+                        <div class="text-danger">
+                            {% for error in batch_form.keywords.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ batch_form.submit(class="btn btn-secondary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -4,4 +4,6 @@
 作者: Liu Yide
 """
 
-__version__ = "2.0.0" 
+__version__ = "2.0.0"
+
+from .app import create_app 

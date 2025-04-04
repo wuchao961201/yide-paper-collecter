@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}RSS源管理 - 论文收集器{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">RSS源管理</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                我的RSS源
+            </div>
+            <div class="card-body">
+                {% if rss_feeds %}
+                <div class="row">
+                    {% for feed in rss_feeds %}
+                    <div class="col-md-12 feed-card">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ feed.name or "未命名源" }}</h5>
+                                <p class="card-text">{{ feed.url }}</p>
+                                <p class="card-text"><small class="text-muted">添加于: {{ feed.added_at.strftime('%Y-%m-%d') }}</small></p>
+                                <form action="{{ url_for('user.delete_rss_feed', feed_id=feed.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定要删除这个RSS源吗？')">删除</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    您还没有添加任何RSS源。请使用右侧的表单添加。
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                添加RSS源
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('user.add_rss_feed') }}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.url.label(class="form-label") }}
+                        {{ form.url(class="form-control") }}
+                        {% if form.url.errors %}
+                        <div class="text-danger">
+                            {% for error in form.url.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="可选") }}
+                        {% if form.name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.name.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                批量添加
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('user.batch_add_rss_feeds') }}">
+                    {{ batch_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ batch_form.feeds.label(class="form-label") }}
+                        {{ batch_form.feeds(class="form-control", rows=5, placeholder="每行一个URL") }}
+                        {% if batch_form.feeds.errors %}
+                        <div class="text-danger">
+                            {% for error in batch_form.feeds.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ batch_form.submit(class="btn btn-secondary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

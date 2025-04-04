@@ -1,14 +1,45 @@
-FROM alpine:3.14
+FROM python:3.9-slim
 
-# 安装cron
-RUN apk add --no-cache dcron tzdata curl
+# 设置工作目录
+WORKDIR /app
+
+# 设置pip配置以解决超时问题
+RUN pip config set global.timeout 100 && \
+    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip install --upgrade pip
+
+# 安装依赖
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt || \
+    pip install --default-timeout=100 -r requirements.txt
+
+# 设置环境变量
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=src.app
 
 # 设置时区
-ENV TZ=Asia/Shanghai
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apt-get update && apt-get install -y tzdata cron && \
+    ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# 创建cron作业
-RUN echo "0 6 * * * curl -s paper-collector:5000/trigger >> /app/logs/cron.log 2>&1" > /etc/crontabs/root
+# 创建所需目录
+RUN mkdir -p /app/data /app/logs /app/conf
+
+# 复制项目文件
+COPY src /app/src
+COPY cron_task.py /app/
+COPY run.py /app/
+
+# 授予执行权限
+RUN chmod +x /app/cron_task.py
+
+# 创建cron作业 - 每小时执行一次收集任务
+RUN echo "0 * * * * cd /app && python /app/cron_task.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/paper-collector-cron
+RUN chmod 0644 /etc/cron.d/paper-collector-cron
+RUN crontab /etc/cron.d/paper-collector-cron
 
 # 启动cron服务
-CMD ["crond", "-f", "-d", "8"] 
+CMD ["cron", "-f"] 

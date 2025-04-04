@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}论文收集器 - 智能论文订阅服务{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 mx-auto text-center py-5">
+        <h1 class="main-title mb-3">智能论文订阅服务</h1>
+        <p class="lead mb-5">自动收集学术论文，按关键词过滤，直接发送到您的邮箱</p>
+        
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('user.dashboard') }}" class="btn btn-primary btn-lg px-5 py-3">进入仪表盘</a>
+        {% else %}
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5 py-3 me-3">免费注册</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-lg px-4 py-3">登录</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row my-5 py-4">
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">📚</div>
+            <h3>多源收集</h3>
+            <p>从学术期刊、arXiv等多个来源自动收集最新论文(默认有arXiv和TechRxiv，其他源需要您自行添加RSS链接)</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">🔍</div>
+            <h3>智能筛选</h3>
+            <p>根据您设置的关键词智能筛选，只接收感兴趣的内容</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">📧</div>
+            <h3>定时推送</h3>
+            <p>每天定时将筛选后的论文发送到您的邮箱，不错过重要研究</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5 pt-4">
+    <div class="col-md-12">
+        <h2 class="section-title text-center mb-5">使用流程</h2>
+    </div>
+</div>
+
+<div class="row steps-container">
+    <div class="col-md-3">
+        <div class="step-card">
+            <div class="step-number">1</div>
+            <h5>创建账号</h5>
+            <p>注册一个免费账号并使用您的邮箱登录系统</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <h5>添加RSS源</h5>
+            <p>添加您关注的学术期刊或网站的RSS订阅源</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <h5>设置关键词</h5>
+            <p>添加您感兴趣的研究关键词进行内容筛选</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="step-card">
+            <div class="step-number">4</div>
+            <h5>接收论文</h5>
+            <p>设置接收时间，系统会自动发送匹配的论文</p>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - 论文收集器{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">仪表盘</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card dashboard-stats">
+            <h1>{{ rss_count }}</h1>
+            <p>RSS源</p>
+            <a href="{{ url_for('user.rss_feeds') }}" class="btn btn-sm btn-outline-primary">管理</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card dashboard-stats">
+            <h1>{{ keyword_count }}</h1>
+            <p>关键词</p>
+            <a href="{{ url_for('user.keywords') }}" class="btn btn-sm btn-outline-primary">管理</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card dashboard-stats">
+            <h1>{{ papers_count }}</h1>
+            <p>已发送论文</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4 mb-4">
+    <div class="col-md-12">
+        <div class="card collect-action-card">
+            <div class="card-body text-center py-4">
+                <form method="post" action="{{ url_for('user.trigger_collection') }}">
+                    <button type="submit" class="btn btn-primary btn-lg px-5 py-3">立即收集论文并发送至邮箱</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="material-icons" style="vertical-align: middle; margin-right: 5px; font-size: 20px;">account_circle</i> 账户信息
+            </div>
+            <div class="card-body">
+                <p><strong>邮箱:</strong> {{ current_user.email }}</p>
+                <p><strong>用户名:</strong> {{ current_user.username }}</p>
+                <p><strong>每日邮件发送时间:</strong> {{ current_user.send_time }}</p>
+                <p><strong>账户创建时间:</strong> {{ current_user.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <a href="{{ url_for('user.settings') }}" class="btn btn-primary">
+                    <i class="material-icons" style="vertical-align: middle; margin-right: 5px; font-size: 18px;">settings</i> 修改设置
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if recent_papers %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="material-icons" style="vertical-align: middle; margin-right: 5px; font-size: 20px;">article</i> 最近发送的论文
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for paper in recent_papers %}
+                    <a href="{{ paper.paper_url }}" class="list-group-item list-group-item-action" target="_blank">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ paper.title }}</h5>
+                            <small>{{ paper.sent_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% if papers_count > 5 %}
+                <div class="mt-3 text-center">
+                    <a href="#" class="btn btn-sm btn-outline-secondary">
+                        <i class="material-icons" style="vertical-align: middle; margin-right: 3px; font-size: 16px;">more_horiz</i> 查看更多
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

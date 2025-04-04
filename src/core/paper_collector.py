@@ -25,7 +25,7 @@ if src_dir not in sys.path:
     sys.path.append(src_dir)
 
 # 导入配置模块
-from config import settings
+from src.config import settings
 
 # 设置日志
 def setup_logging():
@@ -79,14 +79,13 @@ def fetch_arxiv_papers(keyword):
             title = entry.title
             summary = entry.summary
             link = entry.link
-            if is_relevant_paper(title, summary, settings.KEYWORDS):
-                all_papers.append((title, summary, link))
+            all_papers.append((title, summary, link))
     except requests.exceptions.RequestException as e:
         logger.error(f"从arXiv获取关键词'{keyword}'的论文时出错: {e}")
     
     return all_papers
 
-def fetch_techrxiv_papers():
+def fetch_techrxiv_papers(keywords):
     """
     从TechRxiv获取论文
     使用TechRxiv的RSS feed
@@ -100,7 +99,7 @@ def fetch_techrxiv_papers():
             link = entry.get('link', '')
             summary = entry.get('summary', '')
 
-            if is_relevant_paper(title, summary, settings.KEYWORDS):
+            if is_relevant_paper(title, summary, keywords):
                 relevant_papers.append((title, summary, link))
 
         return relevant_papers
@@ -130,265 +129,309 @@ def parse_rss_feed(feed_url, keywords):
         logger.error(f"解析RSS源 {feed_url} 时出错: {e}")
         return []
 
-def save_reading_list(papers, output_folder, date_str):
+def collect_papers_for_user(user):
     """
-    将阅读列表保存到指定文件夹中的文本文件
-    只保存每篇论文的链接
+    为特定用户收集论文并发送邮件
+    
+    参数:
+        user: 用户对象，包含用户的RSS订阅和关键词信息
+    
+    返回:
+        tuple: (成功标志, 总论文数, 新论文数, 消息)
     """
-    file_name = os.path.join(output_folder, f'reading_list_{date_str}.txt')
-    tick = 1
+    import logging
+    from ..models import RssFeed, Keyword, SentPaper, db
+    
+    logger = logging.getLogger(__name__)
+    
     try:
-        with open(file_name, 'w', encoding='utf-8') as f:
-            for paper in papers:
-                title, summary, link = paper
-                f.write(f"[{tick}] {title} \n{link}\n\n")
-                tick += 1
-        logger.info(f'阅读列表已保存到 {file_name}')
-        return file_name
-    except Exception as e:
-        logger.error(f"保存阅读列表时出错: {e}")
-        return None
-
-def read_previous_list(date_str, output_folder):
-    """
-    读取前一天的阅读列表并返回URL集合
-    """
-    previous_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    previous_file_name = os.path.join(output_folder, f'reading_list_{previous_date}.txt')
-
-    # 检查前一天的文件是否存在
-    if os.path.exists(previous_file_name):
+        # 获取用户的RSS订阅源
+        rss_feeds = [feed.url for feed in RssFeed.query.filter_by(user_id=user.id).all()]
+        
+        if not rss_feeds:
+            return False, 0, 0, "用户未添加任何RSS源"
+        
+        # 获取用户的关键词
+        keywords = [kw.text for kw in Keyword.query.filter_by(user_id=user.id).all()]
+        
+        if not keywords:
+            return False, 0, 0, "用户未添加任何关键词"
+        
+        # 获取用户已经发送过的论文URL列表
+        sent_paper_urls = {paper.paper_url for paper in SentPaper.query.filter_by(user_id=user.id).all()}
+        
+        # 收集论文
+        all_papers = []
+        
+        # 1. 从RSS源收集
+        for feed_url in rss_feeds:
+            try:
+                papers = parse_rss_feed(feed_url, keywords)
+                all_papers.extend(papers)
+            except Exception as e:
+                logger.error(f"为用户 {user.email} 解析RSS源 {feed_url} 时出错: {e}")
+        
+        # 2. 对于每个关键词，从arXiv收集
+        for keyword in keywords:
+            try:
+                papers = fetch_arxiv_papers(keyword)
+                all_papers.extend(papers)
+            except Exception as e:
+                logger.error(f"为用户 {user.email} 从arXiv获取关键词 '{keyword}' 的论文时出错: {e}")
+        
+        # 3. 从TechRxiv收集
         try:
-            with open(previous_file_name, 'r', encoding='utf-8') as f:
-                previous_papers = f.readlines()
-
-            # 从前一天的文件中提取URL
-            previous_urls = {line.split()[-1] for line in previous_papers if line.strip()}
-            return previous_urls
+            papers = fetch_techrxiv_papers(keywords)
+            all_papers.extend(papers)
         except Exception as e:
-            logger.error(f"读取前一天的阅读列表时出错: {e}")
-            return set()
-    else:
-        logger.info(f"未找到{previous_date}的阅读列表")
-        return set()
-
-def generate_new_papers_list(all_papers, previous_urls):
-    """
-    生成不在前一天阅读列表中的新论文列表
-    """
-    new_papers = [paper for paper in all_papers if paper[2] not in previous_urls]
-    return new_papers
-
-def save_new_papers_list(new_papers, output_folder):
-    """
-    将新论文列表保存到文本文件
-    """
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    file_name = os.path.join(output_folder, 'reading_list_new.txt')
-    
-    try:
-        with open(file_name, 'w', encoding='utf-8') as f:
-            tick = 1
-            for paper in new_papers:
-                title, summary, link = paper
-                f.write(f"[{tick}] {title} \n{link}\n\n")
-                tick += 1
-        logger.info(f'新论文列表已保存到 {file_name}')
-    except Exception as e:
-        logger.error(f"保存新论文列表时出错: {e}")
-
-def send_email(report_subject, new_papers, all_papers):
-    """
-    使用腾讯SES服务发送包含新论文和所有论文的邮件报告
-    
-    返回:
-        (bool, str): 邮件发送是否成功，以及相关消息
-    """
-    # 第一部分：新项目
-    if new_papers:
-        new_items_section = "新项目:\n\n"
-        new_items_section += "\n\n".join([f"{tick}. {paper[0]} \n{paper[2]}" for tick, paper in enumerate(new_papers, 1)])
-    else:
-        new_items_section = "新项目: 没有新内容。"
-
-    # 第二部分：原始获取结果
-    original_results_section = "\n\n\n\n原始获取结果:\n"
-    original_results_section += "\n\n".join([f"{tick}. {paper[0]} \n{paper[2]}" for tick, paper in enumerate(all_papers, 1)])
-
-    # 组合完整的报告正文
-    report_body = new_items_section + original_results_section
-
-    # 准备邮件
-    message = MIMEMultipart('alternative')
-    message['Subject'] = Header(report_subject, 'UTF-8')
-    
-    # 使用formataddr设置发件人和别名
-    sender_alias = getattr(settings, 'SENDER_ALIAS', "论文收集器")
-    message['From'] = formataddr([sender_alias, settings.SENDER_EMAIL])
-    
-    # 处理收件人，支持多收件人
-    recipients = settings.RECIPIENT_EMAIL
-    if isinstance(recipients, str):
-        recipients = [recipients]  # 如果是单个字符串，转换为列表
-    message['To'] = ", ".join(recipients)
-    
-    # 添加HTML格式的邮件正文
-    html_body = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>{report_subject}</title>
-</head>
-<body>
-<h2>新项目</h2>
-<div>
-{"<p>没有新内容。</p>" if not new_papers else "".join([f"<p>{tick}. <strong>{paper[0]}</strong><br/><a href='{paper[2]}'>{paper[2]}</a></p>" for tick, paper in enumerate(new_papers, 1)])}
-</div>
-<hr/>
-<h2>原始获取结果</h2>
-<div>
-{"".join([f"<p>{tick}. <strong>{paper[0]}</strong><br/><a href='{paper[2]}'>{paper[2]}</a></p>" for tick, paper in enumerate(all_papers, 1)])}
-</div>
-</body>
-</html>"""
-
-    mime_text = MIMEText(html_body, _subtype='html', _charset='UTF-8')
-    message.attach(mime_text)
-
-    # 保留纯文本版本作为备用
-    plain_text = MIMEText(report_body, _subtype='plain', _charset='UTF-8')
-    message.attach(plain_text)
-
-    # SMTP配置
-    smtp_host = settings.SMTP_SERVER
-    smtp_port = settings.SMTP_PORT
-    use_ssl = getattr(settings, 'SMTP_USE_SSL', smtp_port in [465, 587])  # 首先使用设置中的值，如果没有则根据端口自动决定
-
-    # 发送邮件
-    try:
-        if use_ssl:
-            # 创建SSL上下文，使用默认密码套件
-            context = ssl.create_default_context()
-            context.set_ciphers('DEFAULT')
-            # 如果需要禁用TLSv1.3（服务端不支持时）
-            # context.options |= ssl.OP_NO_TLSv1_3
+                logger.error(f"为用户 {user.email} 从TechRxiv获取论文时出错: {e}")
+        
+        # 过滤掉已经发送过的论文
+        new_papers = []
+        for paper in all_papers:
+            title, summary, url = paper
+            if url not in sent_paper_urls:
+                new_papers.append(paper)
+                # 记录新论文到已发送列表
+                sent_paper = SentPaper(
+                    user_id=user.id,
+                    paper_url=url,
+                    title=title,
+                    sent_at=datetime.utcnow()
+                )
+                db.session.add(sent_paper)
+        
+        # 提交数据库更改
+        db.session.commit()
+        
+        # 如果有新论文，发送邮件
+        if new_papers:
+            # 检查是否有足够的信息发送邮件
+            if not user.email:
+                return True, len(all_papers), len(new_papers), "用户邮箱为空，无法发送邮件"
             
-            # 使用SSL连接
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=context)
-            logger.debug("已建立SSL连接")
+            # 准备邮件内容
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            subject = f"[论文订阅] {today_str} - 发现 {len(new_papers)} 篇新论文"
+            
+            # 发送邮件
+            email_success, email_message = send_email_to_user(user, subject, new_papers, all_papers)
+            
+            if email_success:
+                return True, len(all_papers), len(new_papers), "邮件发送成功"
+            else:
+                return False, len(all_papers), len(new_papers), f"邮件发送失败: {email_message}"
         else:
-            # 使用普通连接
-            server = smtplib.SMTP(smtp_host, smtp_port)
-            server.starttls()  # 使用TLS加密
-            logger.debug("已建立TLS连接")
+            return True, len(all_papers), 0, "没有新论文"
         
-        # 登录和发送
-        server.login(settings.SENDER_EMAIL, settings.SENDER_PASSWORD)
-        logger.debug("SMTP登录成功")
-        server.sendmail(settings.SENDER_EMAIL, recipients, message.as_string())
-        server.quit()
-        
-        logger.info(f"邮件成功发送给 {', '.join(recipients)}")
-        return True, "邮件发送成功"
-    except smtplib.SMTPConnectError as e:
-        error_msg = f"连接SMTP服务器失败: {e.smtp_code} {e.smtp_error}"
-        logger.error(error_msg)
-        return False, error_msg
-    except smtplib.SMTPAuthenticationError as e:
-        error_msg = f"SMTP认证失败: {e.smtp_code} {e.smtp_error}"
-        logger.error(error_msg)
-        return False, error_msg
-    except smtplib.SMTPSenderRefused as e:
-        error_msg = f"发送方地址被拒绝: {e.smtp_code} {e.smtp_error}"
-        logger.error(error_msg)
-        return False, error_msg
-    except smtplib.SMTPRecipientsRefused as e:
-        error_msg = f"接收方地址被拒绝: {e.recipients}"
-        logger.error(error_msg)
-        return False, error_msg
-    except smtplib.SMTPDataError as e:
-        error_msg = f"SMTP数据错误: {e.smtp_code} {e.smtp_error}"
-        logger.error(error_msg)
-        return False, error_msg
-    except smtplib.SMTPException as e:
-        error_msg = f"SMTP通用错误: {str(e)}"
-        logger.error(error_msg)
-        return False, error_msg
     except Exception as e:
-        error_msg = f"发送邮件时出错: {str(e)}"
-        logger.error(error_msg)
-        return False, error_msg
+        logger.error(f"为用户 {user.email} 收集论文时出错: {e}")
+        return False, 0, 0, str(e)
 
-def collect_papers_without_email():
+def send_email_to_user(user, subject, new_papers, all_papers=None):
     """
-    收集论文但不发送邮件
+    向特定用户发送论文邮件
+    
+    参数:
+        user: 用户对象
+        subject: 邮件主题
+        new_papers: 新论文列表
+        all_papers: 所有论文列表，可选
     
     返回:
-        (list, list, int, int): 所有论文列表，新论文列表，论文总数，新论文数量
+        tuple: (成功标志, 消息)
     """
-    logger.info("开始论文收集过程（不发送邮件）")
-    all_relevant_papers = []
-
-    # 使用ThreadPoolExecutor并行获取源
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # 并行获取RSS论文
-        futures = [executor.submit(parse_rss_feed, url, settings.KEYWORDS) for url in settings.RSS_FEEDS]
-        for future in concurrent.futures.as_completed(futures):
-            relevant_papers = future.result()
-            all_relevant_papers.extend(relevant_papers)
-        
-        # 并行获取arXiv论文
-        arxiv_futures = [executor.submit(fetch_arxiv_papers, keyword) for keyword in settings.KEYWORDS]
-        for future in concurrent.futures.as_completed(arxiv_futures):
-            arxiv_papers = future.result()
-            all_relevant_papers.extend(arxiv_papers)
-        
-        # 获取TechRxiv论文
-        techrxiv_future = executor.submit(fetch_techrxiv_papers)
-        techrxiv_papers = techrxiv_future.result()
-        all_relevant_papers.extend(techrxiv_papers)
-
-    # 读取前一天的阅读列表
-    output_folder = os.path.join(src_dir, '..', 'data', 'collected-articles')
-    os.makedirs(output_folder, exist_ok=True)
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    import smtplib
+    import ssl
+    from email.header import Header
+    from email.utils import formataddr
+    import logging
     
-    previous_urls = read_previous_list(datetime.now().strftime("%Y-%m-%d"), output_folder)
-
-    # 筛选出新论文
-    new_papers = generate_new_papers_list(all_relevant_papers, previous_urls)
-
-    # 保存新论文列表
-    save_new_papers_list(new_papers, output_folder)
-
-    # 保存今天的阅读列表
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    save_reading_list(all_relevant_papers, output_folder, today_str)
+    from src.config import settings
     
-    logger.info(f"论文收集过程完成: 共收集 {len(all_relevant_papers)} 篇论文，其中 {len(new_papers)} 篇为新论文")
-    return all_relevant_papers, new_papers, len(all_relevant_papers), len(new_papers)
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # 创建邮件消息
+        msg = MIMEMultipart()
+        
+        # 添加发件人和收件人
+        msg['From'] = formataddr((str(Header('论文收集器', 'utf-8')), settings.SENDER_EMAIL))
+        msg['To'] = user.email
+        msg['Subject'] = subject
+        
+        # 生成邮件正文 - 优化样式，更加简洁现代
+        html_body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+                    line-height: 1.6; 
+                    color: #333; 
+                    max-width: 800px; 
+                    margin: 0 auto; 
+                    padding: 20px;
+                }}
+                h1 {{ 
+                    color: #333; 
+                    font-size: 24px; 
+                    margin-bottom: 20px; 
+                    border-bottom: 1px solid #eee; 
+                    padding-bottom: 10px; 
+                }}
+                h2 {{ 
+                    color: #444; 
+                    font-size: 20px; 
+                    margin-top: 25px; 
+                    margin-bottom: 15px; 
+                }}
+                .paper {{ 
+                    margin-bottom: 25px; 
+                    padding-bottom: 15px; 
+                    border-bottom: 1px solid #f1f1f1; 
+                }}
+                .paper h3 {{ 
+                    margin-bottom: 10px; 
+                    color: #1a73e8; 
+                    font-size: 18px; 
+                }}
+                .summary {{ 
+                    color: #555; 
+                    margin-bottom: 10px; 
+                    font-size: 15px;
+                    line-height: 1.5;
+                }}
+                .link {{ 
+                    display: inline-block;
+                    color: #1a73e8; 
+                    text-decoration: none; 
+                    font-weight: 500;
+                    padding: 4px 0;
+                }}
+                .footer {{ 
+                    margin-top: 30px; 
+                    padding-top: 15px;
+                    border-top: 1px solid #eee; 
+                    color: #777; 
+                    font-size: 14px; 
+                }}
+                .count-badge {{
+                    display: inline-block;
+                    background: #f1f8ff;
+                    border: 1px solid #dbedff;
+                    color: #1a73e8;
+                    border-radius: 12px;
+                    padding: 2px 8px;
+                    font-size: 14px;
+                    margin-left: 8px;
+                    font-weight: normal;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>论文订阅</h1>
+            <p>尊敬的 {user.username}，</p>
+            <p>以下是根据您的关键词筛选出的论文：</p>
+        """
+        
+        if new_papers:
+            html_body += f"""
+            <h2>发现的论文 <span class="count-badge">{len(new_papers)}</span></h2>
+            """
+            
+            for i, paper in enumerate(new_papers, 1):
+                title, summary, link = paper
+                html_body += f"""
+                <div class="paper">
+                    <h3>{title}</h3>
+                    <div class="summary">{summary[:250]}{'...' if len(summary) > 250 else ''}</div>
+                    <a class="link" href="{link}">阅读详情 →</a>
+                </div>
+                """
+        else:
+            html_body += """
+            <p>没有发现新论文。</p>
+            """
+        
+        html_body += f"""
+            <div class="footer">
+                <p>此邮件由论文收集器自动发送，请勿回复。</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # 添加HTML内容
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        
+        # 连接到SMTP服务器并发送邮件
+        if settings.SMTP_USE_SSL:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(settings.SMTP_SERVER, settings.SMTP_PORT, context=context) as server:
+                server.login(settings.SENDER_EMAIL, settings.SENDER_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SENDER_EMAIL, settings.SENDER_PASSWORD)
+                server.send_message(msg)
+        
+        logger.info(f"成功向用户 {user.email} 发送邮件")
+        return True, "邮件发送成功"
+    
+    except Exception as e:
+        logger.error(f"向用户 {user.email} 发送邮件时出错: {e}")
+        return False, str(e)
 
-def collect_papers():
+def collect_papers_for_all_users():
     """
-    收集论文的主函数（包括发送邮件）
+    为所有活跃用户收集论文
     
     返回:
-        (int, int, bool, str): 论文总数，新论文数量，邮件是否发送成功，邮件发送结果消息
+        tuple: (成功用户数, 总用户数, 错误信息列表)
     """
-    logger.info("开始论文收集过程（包括发送邮件）")
+    import logging
+    from datetime import datetime
+    from ..models import User
     
-    # 收集论文
-    all_papers, new_papers, total_count, new_count = collect_papers_without_email()
+    logger = logging.getLogger(__name__)
     
-    # 生成邮件报告
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    report_subject = f"[论文获取报告 - Yide Liu] [{today_str}]"
+    # 获取当前时间
+    now = datetime.now()
+    current_time = now.strftime("%H:%M")
     
-    # 发送邮件
-    email_success, email_message = send_email(report_subject, new_papers, all_papers)
+    # 查找当前时间应该接收邮件的活跃用户
+    users = User.query.filter_by(is_active=True).filter_by(send_time=current_time).all()
     
-    return total_count, new_count, email_success, email_message
+    if not users:
+        logger.info(f"当前时间 {current_time} 没有需要发送邮件的用户")
+        return 0, 0, []
+    
+    success_count = 0
+    errors = []
+    
+    # 为每个用户收集论文
+    for user in users:
+        try:
+            success, total, new, message = collect_papers_for_user(user)
+            
+            if success:
+                success_count += 1
+                logger.info(f"为用户 {user.email} 成功收集论文: 共 {total} 篇，其中 {new} 篇为新论文")
+            else:
+                errors.append(f"用户 {user.email}: {message}")
+                logger.error(f"为用户 {user.email} 收集论文失败: {message}")
+        
+        except Exception as e:
+            errors.append(f"用户 {user.email}: {str(e)}")
+            logger.error(f"为用户 {user.email} 收集论文时出错: {e}")
+    
+    return success_count, len(users), errors
 
 if __name__ == "__main__":
-    total_papers, new_papers, email_success, email_message = collect_papers()
-    print(f"收集完成: 共{total_papers}篇论文，其中{new_papers}篇为新论文")
-    print(f"邮件发送结果: {'成功' if email_success else '失败'} - {email_message}") 
+    # 直接运行此模块时的测试代码
+    print("论文收集模块测试")
+    print("请通过run.py的命令行接口来运行论文收集功能")

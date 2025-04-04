@@ -76,10 +76,10 @@
    pip install -r requirements.txt
    ```
 
-3. 创建本地配置：
+3. 创建环境变量文件：
    ```bash
-   cp conf/local_settings.example.py conf/local_settings.py
-   # 编辑local_settings.py，设置必要参数
+   cp .env.example .env
+   # 编辑.env文件，设置必要的环境变量
    ```
 
 4. 运行服务：
@@ -91,26 +91,33 @@
 
 ### 必需配置
 
-在`conf/local_settings.py`中设置以下参数：
+在`.env`文件中设置以下参数：
 
-```python
-# 邮件设置
-SENDER_EMAIL = "your_email@example.com"    # 发件人邮箱
-SENDER_PASSWORD = "your_password"          # 发件人密码
-RECIPIENT_EMAIL = "recipient@example.com"  # 收件人邮箱
-SMTP_SERVER = "smtp.example.com"           # SMTP服务器
-SMTP_PORT = 587                            # SMTP端口
+```ini
+# 邮件发送配置
+SENDER_EMAIL=your_email@example.com
+PAPER_COLLECTOR_PASSWORD=your_secure_password_here
 
-# 关键词设置
-KEYWORDS = ["机器学习", "人工智能", "深度学习"]  # 要筛选的关键词
+# SMTP服务器配置
+SMTP_SERVER=smtp.example.com
+SMTP_PORT=465
+SMTP_USE_SSL=True
+
+# Flask应用配置
+SECRET_KEY=change_this_to_a_long_random_string
+FLASK_ENV=production
 ```
 
+也可以通过环境变量直接设置这些参数。
+
 ### 高级配置
+
+可以在`src/config/settings.py`中修改其他参数：
 
 ```python
 # API配置
 API_HOST = "0.0.0.0"  # API监听地址
-API_PORT = 5000       # API监听端口
+API_PORT = 8080       # API监听端口
 
 # 论文收集配置
 DAYS_TO_FETCH = 90    # 从arXiv获取的天数范围
@@ -199,4 +206,70 @@ curl http://localhost:5000/health
 
 如发现问题或有改进建议，请联系开发团队或提交Issue/PR。
 
-祝您使用愉快！ 
+祝您使用愉快！
+
+## 多用户订阅系统
+
+最新版本的论文收集器支持多用户订阅系统，允许多个用户注册自己的账号，配置个性化的RSS源和关键词，并在自定义时间接收论文邮件。
+
+### 特性
+
+1. **用户认证系统**：支持用户注册、登录和密码管理
+2. **个性化订阅**：每个用户可以设置自己的RSS源和关键词
+3. **定时发送**：用户可以设置每天接收邮件的时间
+4. **仪表盘界面**：直观显示用户订阅状态和最近收到的论文
+
+### 安装和配置
+
+首先安装所需的依赖：
+
+```bash
+pip install -r requirements.txt
+```
+
+初始化数据库：
+
+```bash
+python run.py init-db
+```
+
+### 运行Web应用
+
+启动Web应用：
+
+```bash
+python run.py web
+```
+
+默认情况下，应用将在 http://0.0.0.0:5000 上运行。
+
+### 设置定时任务
+
+论文收集器使用定时任务来检查和发送论文。使用提供的脚本设置cron作业：
+
+```bash
+bash cron_setup.sh
+```
+
+这将创建一个每小时执行一次的cron作业，检查是否有用户的发送时间与当前时间匹配，并为这些用户收集和发送论文。
+
+### 手动触发收集
+
+您也可以手动为特定用户触发论文收集：
+
+```bash
+# 为指定用户ID收集论文
+python run.py collect --user-id 1
+
+# 为所有当前时间应接收邮件的用户收集论文
+python run.py collect --all-users
+```
+
+### 迁移
+
+如果您之前使用的是基于配置文件的版本，可以通过以下步骤迁移到多用户系统：
+
+1. 运行Web应用并注册一个新用户
+2. 登录后，在"关键词"页面中批量导入您之前在配置文件中定义的关键词
+3. 在"RSS源"页面中批量导入您之前的RSS源
+4. 设置您想要接收邮件的时间 
