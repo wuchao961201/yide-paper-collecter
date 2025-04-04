@@ -40,6 +40,6 @@ services:
       sh -c "
         apk add --no-cache dcron tzdata curl jq &&
         mkdir -p /logs && chmod 777 /logs &&
-        echo '0 10 * * * curl -s paper-collector:5000/trigger | jq -r \"\\(.status) 共\\(.data.total_papers)篇论文, 新\\(.data.new_papers)篇, 邮件:\\(.data.email.success)\" >> /logs/cron.log 2>&1' > /etc/crontabs/root &&
+        echo '0 6 * * * curl -s paper-collector:5000/trigger | jq -r \"\\(.status) 共\\(.data.total_papers)篇论文, 新\\(.data.new_papers)篇, 邮件:\\(.data.email.success)\" >> /logs/cron.log 2>&1' > /etc/crontabs/root &&
         crond -f -d 8
       " 
