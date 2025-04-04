@@ -86,6 +86,28 @@ def fetch_arxiv_papers(keyword):
     
     return all_papers
 
+def fetch_techrxiv_papers():
+    """
+    从TechRxiv获取论文
+    使用TechRxiv的RSS feed
+    """
+    try:
+        feed = feedparser.parse(settings.TECHRXIV_API_URL)
+        relevant_papers = []
+
+        for entry in feed.entries:
+            title = entry.get('title', 'No Title')
+            link = entry.get('link', '')
+            summary = entry.get('summary', '')
+
+            if is_relevant_paper(title, summary, settings.KEYWORDS):
+                relevant_papers.append((title, summary, link))
+
+        return relevant_papers
+    except Exception as e:
+        logger.error(f"从TechRxiv获取论文时出错: {e}")
+        return []
+
 def parse_rss_feed(feed_url, keywords):
     """
     解析RSS源，根据关键词筛选论文，并返回相关论文列表
@@ -320,6 +342,11 @@ def collect_papers_without_email():
         for future in concurrent.futures.as_completed(arxiv_futures):
             arxiv_papers = future.result()
             all_relevant_papers.extend(arxiv_papers)
+        
+        # 获取TechRxiv论文
+        techrxiv_future = executor.submit(fetch_techrxiv_papers)
+        techrxiv_papers = techrxiv_future.result()
+        all_relevant_papers.extend(techrxiv_papers)
 
     # 读取前一天的阅读列表
     output_folder = os.path.join(src_dir, '..', 'data', 'collected-articles')

@@ -25,11 +25,27 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # 关键词配置
 KEYWORDS = [
-    "insect", "biologically", "microrobot", "miniature", "flapping", "mav", 
-    "micro aerial vehicle", "origami", "CPG", "central pattern generator", "bionic", 
-    "neuromorphic", "flight", "beetle", "dragonfly", "hovering", "liftoff", 
-    "takeoff", "wing", "micromanipulator", "micromanipulation", "parallel mechanism", 
-    "parallel robot", "parallel manipulator"
+    "humanoid robot",
+    "bipedal walking",
+    "reinforcement learning",
+    "dexterous manipulation",
+    "multi-finger",
+    "tactile sensing",
+    "grasping",
+    "in-hand",
+    "Fabric Manipulation",
+    "deformable object",
+    "cloth folding",
+    "RL policy",
+    "offline reinforcement learning",
+    "hierarchical RL",
+    "multi-task RL",
+    "sparse reward",
+    "VLM robotic",
+    "LLM",
+    "embodied AI",
+    "world model",
+    "haptic feedback"
 ]
 
 # RSS源配置
@@ -41,10 +57,18 @@ RSS_FEEDS = [
     "https://www.nature.com/nature.rss",
     "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science",
     "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv",
+    "http://journals.sagepub.com/action/showFeed?ui=0&mi=ehikzz&ai=2b4&jc=ijrb&type=etoc&feed=rss",
+    "https://ieeexplore.ieee.org/rss/TRO.xml",
+    "https://www.science.org/action/showFeed?ui=0&mi=ehikzz&ai=sm&jc=scirobotics&type=etoc&feed=rss",
+    "https://ieeexplore.ieee.org/rss/RAL.xml",
+    "https://www.nature.com/natmachintell.rss",
 ]
 
 # arXiv API配置
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
+
+# TechRxiv API配置
+TECHRXIV_API_URL = "https://www.techrxiv.org/feed/rss_2.0/recent"
 
 # 邮件默认配置
 # 注意：不要在此处存储实际密码，请使用环境变量或conf/local_settings.py
