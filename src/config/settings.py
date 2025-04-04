@@ -50,8 +50,6 @@ KEYWORDS = [
 
 # RSS源配置
 RSS_FEEDS = [
-    "https://onlinelibrary.wiley.com/feed/26404567/most-recent",
-    "https://iopscience.iop.org/journal/rss/1748-3190",
     "https://ieeexplore.ieee.org/rss/TOC7083369.XML",
     "https://www.nature.com/ncomms.rss",
     "https://www.nature.com/nature.rss",
