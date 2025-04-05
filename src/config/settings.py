@@ -27,9 +27,6 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 # arXiv API配置
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 
-# TechRxiv API配置
-TECHRXIV_API_URL = "https://ieeexplore.ieee.org/feed/rss/TechRxiv"
-
 # 邮件配置 - 从环境变量读取
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL')
 if not SENDER_EMAIL:

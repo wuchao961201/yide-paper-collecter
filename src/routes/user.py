@@ -361,4 +361,27 @@ def api_trigger_all_collection():
         return jsonify({
             'success': False,
             'message': f'收集论文过程中出错：{str(e)}'
-        }), 500 
+        }), 500
+
+@user_bp.route('/papers')
+@login_required
+def papers():
+    """用户的所有已发送论文"""
+    # 分页
+    page = request.args.get('page', 1, type=int)
+    per_page = 15  # 每页显示15篇论文
+    
+    # 获取用户的所有已发送论文，按发送时间降序排序
+    pagination = SentPaper.query.filter_by(user_id=current_user.id)\
+        .order_by(SentPaper.sent_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    papers = pagination.items
+    
+    # 添加now变量用于模板中显示年份
+    now = datetime.now()
+    
+    return render_template('user/papers.html', 
+                          papers=papers,
+                          pagination=pagination,
+                          now=now) 
